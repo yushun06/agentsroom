@@ -18,13 +18,19 @@ MAX_RETRIES = 4
 RETRY_DELAYS: list[float] = [1.0, 5.0, 30.0]  # attempts 1, 2, 3
 
 
-def enqueue_dlq(state_dir: str | Path, agent_id: str, message: dict[str, Any], *, error: str) -> Path:
+def _safe_agent_dir(state_dir: str | Path, agent_id: str) -> Path:
+    """Return the DLQ directory for an agent, URL-quoting the ID for path safety."""
+    from urllib.parse import quote
+    return Path(state_dir) / "dlq" / quote(agent_id, safe=":-_.")
+
+
+def enqueue_dlq(state_dir: str | Path, agent_id: str, message: dict[str, Any], *, error: str, webhook: str | None = None) -> Path:
     """Write a failed delivery to the DLQ."""
-    base = Path(state_dir) / "dlq" / agent_id
+    base = _safe_agent_dir(state_dir, agent_id)
     base.mkdir(parents=True, exist_ok=True)
     message_id = message.get("id", "unknown")
     path = base / f"{message_id}.json"
-    entry = {
+    entry: dict[str, Any] = {
         "agentId": agent_id,
         "messageId": message_id,
         "payload": message,
@@ -32,6 +38,8 @@ def enqueue_dlq(state_dir: str | Path, agent_id: str, message: dict[str, Any], *
         "lastError": error,
         "updatedAt": utc_now(),
     }
+    if webhook:
+        entry["webhook"] = webhook
     path.write_text(json.dumps(entry, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     metrics.dlq_depth.inc(labels={"agent": agent_id})
     logger.warning("DLQ enqueue", extra={"agentId": agent_id, "messageId": message_id})
@@ -56,7 +64,7 @@ def read_dlq_entries(state_dir: str | Path) -> list[dict[str, Any]]:
 
 
 def _dlq_path(state_dir: str | Path, agent_id: str, message_id: str) -> Path:
-    return Path(state_dir) / "dlq" / agent_id / f"{message_id}.json"
+    return _safe_agent_dir(state_dir, agent_id) / f"{message_id}.json"
 
 
 def _remove_dlq_entry(state_dir: str | Path, agent_id: str, message_id: str) -> None:

@@ -20,6 +20,8 @@ class AgentroomLifecycle:
         self.store = store or AgentroomStore()
 
     def create_room(self, room_id: str, *, topic: str | None = None, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+        # Validate room_id before mutating the index — encode_room_id rejects empty/invalid IDs
+        self.store.encode_room_id(room_id)
         now = utc_now()
         with self.store.locked_json(self.store.index_path, {"rooms": {}}) as index:
             rooms = index.setdefault("rooms", {})

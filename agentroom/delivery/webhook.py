@@ -51,7 +51,7 @@ async def fan_out(
                         extra={"agentId": agent_id, "messageId": message.get("id")},
                     )
                     if state_dir:
-                        enqueue_dlq(state_dir, agent_id, message, error=str(exc))
+                        enqueue_dlq(state_dir, agent_id, message, error=str(exc), webhook=webhook_url)
                     return exc
 
     return await asyncio.gather(*(deliver(sub) for sub in subscribers))

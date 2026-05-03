@@ -118,6 +118,16 @@ class AgentroomTests(unittest.TestCase):
         self.assertIn("project:demo", presence["rooms"])
 
 
+    def test_create_room_rejects_empty_id(self) -> None:
+        """Empty room ID must be rejected before the index is mutated."""
+        lifecycle = self.make_lifecycle()
+        with self.assertRaises(ValueError):
+            lifecycle.create_room("")
+        # Index should remain clean — no broken room entry
+        rooms = lifecycle.discover_rooms(status=None)
+        self.assertEqual(len(rooms), 0)
+
+
 class DLQTests(unittest.TestCase):
     def test_enqueue_and_read_dlq(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -130,6 +140,28 @@ class DLQTests(unittest.TestCase):
         self.assertEqual(entries[0]["agentId"], "agent-1")
         self.assertEqual(entries[0]["attempts"], 1)
         self.assertEqual(entries[0]["lastError"], "timeout")
+
+    def test_dlq_path_safety(self) -> None:
+        """DLQ files for agent IDs with path separators must stay inside dlq/."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        message = {"id": "msg_traversal", "roomId": "room1", "format": "plain_text",
+                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        enqueue_dlq(tmp.name, "../../etc/passwd", message, error="test")
+        dlq_dir = Path(tmp.name) / "dlq"
+        for agent_dir in dlq_dir.iterdir():
+            self.assertEqual(agent_dir.resolve().parent, dlq_dir.resolve(),
+                             f"DLQ agent dir escaped: {agent_dir}")
+
+    def test_dlq_preserves_webhook_url(self) -> None:
+        """Webhook URL stored in DLQ entry so standalone retry can find it."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        message = {"id": "msg_wh", "roomId": "room1", "format": "plain_text",
+                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        enqueue_dlq(tmp.name, "agent-1", message, error="fail", webhook="http://example.test/hook")
+        entries = read_dlq_entries(tmp.name)
+        self.assertEqual(entries[0].get("webhook"), "http://example.test/hook")
 
     def test_dlq_retry_marks_unhealthy(self) -> None:
         tmp = tempfile.TemporaryDirectory()
