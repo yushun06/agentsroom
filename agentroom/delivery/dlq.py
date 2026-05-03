@@ -20,6 +20,8 @@ RETRY_DELAYS: list[float] = [1.0, 5.0, 30.0]  # attempts 1, 2, 3
 
 def _safe_agent_dir(state_dir: str | Path, agent_id: str) -> Path:
     """Return the DLQ directory for an agent, URL-quoting the ID for path safety."""
+    if not agent_id or agent_id.strip("/") in ("", ".", ".."):
+        raise ValueError(f"invalid agent_id for DLQ: {agent_id!r}")
     from urllib.parse import quote
     return Path(state_dir) / "dlq" / quote(agent_id, safe=":-_.")
 

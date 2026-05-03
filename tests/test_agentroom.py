@@ -141,6 +141,21 @@ class DLQTests(unittest.TestCase):
         self.assertEqual(entries[0]["attempts"], 1)
         self.assertEqual(entries[0]["lastError"], "timeout")
 
+    def test_dlq_rejects_dot_only_agent_ids(self) -> None:
+        """Agent IDs that are '.' or '..' must be rejected, not written outside dlq/."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        message = {"id": "msg_dot", "roomId": "room1", "format": "plain_text",
+                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        with self.assertRaises(ValueError):
+            enqueue_dlq(tmp.name, ".", message, error="test")
+        with self.assertRaises(ValueError):
+            enqueue_dlq(tmp.name, "..", message, error="test")
+        # Nothing should have been written
+        dlq_dir = Path(tmp.name) / "dlq"
+        if dlq_dir.exists():
+            self.assertEqual(list(dlq_dir.iterdir()), [])
+
     def test_dlq_path_safety(self) -> None:
         """DLQ files for agent IDs with path separators must stay inside dlq/."""
         tmp = tempfile.TemporaryDirectory()
