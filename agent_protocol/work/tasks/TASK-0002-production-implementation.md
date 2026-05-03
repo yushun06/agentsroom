@@ -56,6 +56,17 @@ updated: 2026-05-03
 - MVP (TASK-0001) provided core modules, basic delivery helpers, and adapter base classes.
 - All production features were deferred in TODO-0001.
 
+## Plan
+- [x] Implement observability module (structured JSON logging + Prometheus metrics).
+- [x] Implement DLQ retry loop with exponential backoff and unhealthy agent marking.
+- [x] Implement webhook auto-dispatch on message append with DLQ integration.
+- [x] Implement Codex, Claude Code, and Gemini adapter runners.
+- [x] Add /metrics and enhanced /status endpoints.
+- [x] Add `agent run` CLI command.
+- [x] Write HTTP integration tests.
+- [x] Add deployment tooling.
+- [x] Update package version and exports.
+
 ## Current Status
 - Production implementation complete. All TODO-0001 items resolved.
 

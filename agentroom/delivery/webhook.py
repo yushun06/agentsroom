@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import time
 from typing import Any
 
 from ..observability.logger import get_logger
@@ -92,6 +90,7 @@ def get_subscribers_for_room(
 def _safe_filename(agent_id: str) -> str:
     """Encode agent_id for safe filesystem use (mirrors core._cursor_path)."""
     from urllib.parse import quote
+
     return quote(agent_id, safe=":-_.")
 
 

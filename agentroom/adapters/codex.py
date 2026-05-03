@@ -40,15 +40,18 @@ class CodexAdapter(BaseAdapter):
         self.model = model
         self.timeout = timeout
 
-    async def process(self, room_id: str, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def process(self, room_id: str, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:  # noqa: ARG002
         """Process messages through Codex CLI and return response envelopes."""
         compiled = self.compiler.compile(
             {"agentId": self.agent_id, "role": self.role},
             messages,
         )
-        prompt = compiled["system"] + "\n\n" + "\n".join(
-            msg.get("payload", {}).get("text", json.dumps(msg.get("payload", {})))
-            for msg in compiled["messages"]
+        prompt = (
+            compiled["system"]
+            + "\n\n"
+            + "\n".join(
+                msg.get("payload", {}).get("text", json.dumps(msg.get("payload", {}))) for msg in compiled["messages"]
+            )
         )
 
         with Timer(metrics.adapter_llm_duration):
@@ -73,7 +76,8 @@ class CodexAdapter(BaseAdapter):
         try:
             proc = await asyncio.create_subprocess_exec(
                 self.codex_bin,
-                "--model", self.model,
+                "--model",
+                self.model,
                 "--quiet",
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
@@ -84,7 +88,7 @@ class CodexAdapter(BaseAdapter):
                 logger.error(f"Codex exited with code {proc.returncode}: {stderr.decode()[:200]}")
                 return None
             return stdout.decode().strip() or None
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Codex timed out after {self.timeout}s")
             proc.kill()
             return None

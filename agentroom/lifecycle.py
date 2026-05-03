@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import gzip
 import shutil
-from pathlib import Path
 from typing import Any
-
 from urllib.parse import quote
 
 from .core import AgentroomStore
@@ -19,7 +17,9 @@ class AgentroomLifecycle:
     def __init__(self, store: AgentroomStore | None = None) -> None:
         self.store = store or AgentroomStore()
 
-    def create_room(self, room_id: str, *, topic: str | None = None, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create_room(
+        self, room_id: str, *, topic: str | None = None, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         # Validate room_id before mutating the index — encode_room_id rejects empty/invalid IDs
         self.store.encode_room_id(room_id)
         now = utc_now()
@@ -109,7 +109,9 @@ class AgentroomLifecycle:
         self._save_presence(agent_id, "online", rooms=existing.get("rooms", []) if "existing" in locals() else [])
         return agent
 
-    def list_agents(self, *, role: str | None = None, capability: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+    def list_agents(
+        self, *, role: str | None = None, capability: str | None = None, status: str | None = None
+    ) -> list[dict[str, Any]]:
         agents = self.store.read_json(self.store.registry_path, {"agents": {}}).get("agents", {})
         result = []
         for agent in agents.values():
@@ -133,7 +135,9 @@ class AgentroomLifecycle:
         presence = self._save_presence(agent_id, status)
         return presence
 
-    def join_room(self, room_id: str, agent_id: str, *, role: str, adapter: str, capabilities: list[str] | None = None) -> dict[str, Any]:
+    def join_room(
+        self, room_id: str, agent_id: str, *, role: str, adapter: str, capabilities: list[str] | None = None
+    ) -> dict[str, Any]:
         self._assert_room_active(room_id)
         agents = self.store.read_json(self.store.registry_path, {"agents": {}}).get("agents", {})
         if agent_id not in agents:
@@ -148,7 +152,9 @@ class AgentroomLifecycle:
         self.store.append_message(room_id, envelope)
         return presence
 
-    def leave_room(self, room_id: str, agent_id: str, *, role: str = "agent", adapter: str = "unknown") -> dict[str, Any]:
+    def leave_room(
+        self, room_id: str, agent_id: str, *, role: str = "agent", adapter: str = "unknown"
+    ) -> dict[str, Any]:
         self._assert_room_exists(room_id)
         presence = self._save_presence(agent_id, "offline", remove_room=room_id)
         envelope = create_envelope(

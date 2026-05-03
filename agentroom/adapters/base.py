@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 
 @dataclass
@@ -55,7 +56,9 @@ class ConcurrencyPool:
 
 
 class PromptCompiler:
-    def compile(self, agent_identity: dict[str, Any], messages: list[dict[str, Any]], max_tokens: int = 8000) -> dict[str, Any]:
+    def compile(
+        self, agent_identity: dict[str, Any], messages: list[dict[str, Any]], max_tokens: int = 8000
+    ) -> dict[str, Any]:
         system = (
             f"You are {agent_identity.get('agentId')} with role {agent_identity.get('role')}. "
             "Respond using Agentroom coordination conventions."

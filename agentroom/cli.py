@@ -250,12 +250,15 @@ async def _run_adapter(args: argparse.Namespace) -> int:
 def _get_adapter_class(name: str) -> type:
     if name == "codex":
         from .adapters.codex import CodexAdapter
+
         return CodexAdapter
     if name == "claude_code":
         from .adapters.claude_code import ClaudeCodeAdapter
+
         return ClaudeCodeAdapter
     if name == "gemini":
         from .adapters.gemini import GeminiAdapter
+
         return GeminiAdapter
     raise ValueError(f"unknown adapter: {name}")
 

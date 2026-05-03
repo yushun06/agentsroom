@@ -9,7 +9,7 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib import request, error
+from urllib import error, request
 
 from agentroom.core import AgentroomStore
 from agentroom.lifecycle import AgentroomLifecycle
@@ -18,6 +18,7 @@ from agentroom.server import AgentroomHandler
 
 def _free_port() -> int:
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -47,6 +48,7 @@ class HTTPIntegrationTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.server.shutdown()
         import shutil
+
         if cls.tmp_dir.exists():
             shutil.rmtree(cls.tmp_dir, ignore_errors=True)
 
@@ -77,6 +79,7 @@ class HTTPIntegrationTests(unittest.TestCase):
 
     def test_metrics(self) -> None:
         from agentroom.observability.metrics import metrics as m
+
         m.messages_total.inc()
         with request.urlopen(self._url("/metrics")) as resp:
             text = resp.read().decode()
@@ -100,23 +103,29 @@ class HTTPIntegrationTests(unittest.TestCase):
 
     def test_post_and_list_messages(self) -> None:
         self._post("/rooms", {"roomId": "http:msg-room"})
-        result, status = self._post("/rooms/http:msg-room/messages", {
-            "format": "plain_text",
-            "from": {"agentId": "http-poster", "role": "worker", "adapter": "codex"},
-            "text": "hello from HTTP",
-        })
+        result, status = self._post(
+            "/rooms/http:msg-room/messages",
+            {
+                "format": "plain_text",
+                "from": {"agentId": "http-poster", "role": "worker", "adapter": "codex"},
+                "text": "hello from HTTP",
+            },
+        )
         self.assertEqual(status, 201)
 
         messages = self._get("/rooms/http:msg-room/messages")
         self.assertTrue(any(m.get("payload", {}).get("text") == "hello from HTTP" for m in messages))
 
     def test_register_and_list_agents(self) -> None:
-        result, status = self._post("/agents/register", {
-            "agentId": "http-tester",
-            "role": "tester",
-            "adapter": "codex",
-            "webhook": "http://example.test/hook",
-        })
+        result, status = self._post(
+            "/agents/register",
+            {
+                "agentId": "http-tester",
+                "role": "tester",
+                "adapter": "codex",
+                "webhook": "http://example.test/hook",
+            },
+        )
         self.assertEqual(status, 201)
         self.assertEqual(result["agentId"], "http-tester")
 
@@ -125,31 +134,43 @@ class HTTPIntegrationTests(unittest.TestCase):
 
     def test_join_leave_room(self) -> None:
         self._post("/rooms", {"roomId": "http:join-room"})
-        self._post("/agents/register", {
-            "agentId": "http-joiner",
-            "role": "worker",
-            "adapter": "codex",
-        })
-        result, _ = self._post("/rooms/http:join-room/join", {
-            "agentId": "http-joiner",
-            "role": "worker",
-            "adapter": "codex",
-        })
+        self._post(
+            "/agents/register",
+            {
+                "agentId": "http-joiner",
+                "role": "worker",
+                "adapter": "codex",
+            },
+        )
+        result, _ = self._post(
+            "/rooms/http:join-room/join",
+            {
+                "agentId": "http-joiner",
+                "role": "worker",
+                "adapter": "codex",
+            },
+        )
         self.assertIn("http:join-room", result.get("rooms", []))
 
-        result, _ = self._post("/rooms/http:join-room/leave", {
-            "agentId": "http-joiner",
-            "role": "worker",
-            "adapter": "codex",
-        })
+        result, _ = self._post(
+            "/rooms/http:join-room/leave",
+            {
+                "agentId": "http-joiner",
+                "role": "worker",
+                "adapter": "codex",
+            },
+        )
         self.assertNotIn("http:join-room", result.get("rooms", []))
 
     def test_heartbeat(self) -> None:
-        self._post("/agents/register", {
-            "agentId": "http-beater",
-            "role": "worker",
-            "adapter": "codex",
-        })
+        self._post(
+            "/agents/register",
+            {
+                "agentId": "http-beater",
+                "role": "worker",
+                "adapter": "codex",
+            },
+        )
         result, _ = self._post("/agents/http-beater/heartbeat", {"status": "busy"})
         self.assertEqual(result["status"], "busy")
 
@@ -165,11 +186,14 @@ class HTTPIntegrationTests(unittest.TestCase):
 
     def test_unread_messages(self) -> None:
         self._post("/rooms", {"roomId": "http:unread-room"})
-        self._post("/rooms/http:unread-room/messages", {
-            "format": "plain_text",
-            "from": {"agentId": "http-writer", "role": "worker", "adapter": "codex"},
-            "text": "unread test",
-        })
+        self._post(
+            "/rooms/http:unread-room/messages",
+            {
+                "format": "plain_text",
+                "from": {"agentId": "http-writer", "role": "worker", "adapter": "codex"},
+                "text": "unread test",
+            },
+        )
         messages = self._get("/rooms/http:unread-room/messages?unread=true&agent=http-reader&mark_read=true")
         self.assertTrue(len(messages) >= 1)
 

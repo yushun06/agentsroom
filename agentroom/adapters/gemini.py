@@ -40,15 +40,18 @@ class GeminiAdapter(BaseAdapter):
         self.model = model
         self.timeout = timeout
 
-    async def process(self, room_id: str, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def process(self, room_id: str, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:  # noqa: ARG002
         """Process messages through Gemini CLI and return response envelopes."""
         compiled = self.compiler.compile(
             {"agentId": self.agent_id, "role": self.role},
             messages,
         )
-        prompt = compiled["system"] + "\n\n" + "\n".join(
-            msg.get("payload", {}).get("text", json.dumps(msg.get("payload", {})))
-            for msg in compiled["messages"]
+        prompt = (
+            compiled["system"]
+            + "\n\n"
+            + "\n".join(
+                msg.get("payload", {}).get("text", json.dumps(msg.get("payload", {}))) for msg in compiled["messages"]
+            )
         )
 
         with Timer(metrics.adapter_llm_duration):
@@ -73,7 +76,8 @@ class GeminiAdapter(BaseAdapter):
         try:
             proc = await asyncio.create_subprocess_exec(
                 self.gemini_bin,
-                "--model", self.model,
+                "--model",
+                self.model,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -83,7 +87,7 @@ class GeminiAdapter(BaseAdapter):
                 logger.error(f"Gemini exited with code {proc.returncode}: {stderr.decode()[:200]}")
                 return None
             return stdout.decode().strip() or None
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Gemini timed out after {self.timeout}s")
             proc.kill()
             return None

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -15,7 +15,7 @@ VALID_FORMATS = {"plain_text", "a2a", "system"}
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def new_message_id() -> str:
@@ -68,9 +68,10 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
             raise SchemaError("plain_text payload requires text")
     elif envelope["format"] == "a2a":
         validate_a2a_payload(envelope["payload"])
-    elif envelope["format"] == "system":
-        if not isinstance(envelope["payload"], dict) or not isinstance(envelope["payload"].get("type"), str):
-            raise SchemaError("system payload requires type")
+    elif envelope["format"] == "system" and (
+        not isinstance(envelope["payload"], dict) or not isinstance(envelope["payload"].get("type"), str)
+    ):
+        raise SchemaError("system payload requires type")
 
 
 def create_envelope(

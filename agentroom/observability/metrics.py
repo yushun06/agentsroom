@@ -25,7 +25,7 @@ class Counter:
     def inc(self, amount: float = 1, *, labels: dict[str, str] | None = None) -> None:
         with self._lock:
             if labels and self.labels:
-                key = tuple(labels.get(l, "") for l in self.labels)
+                key = tuple(labels.get(label, "") for label in self.labels)
                 self._label_values[key] = self._label_values.get(key, 0) + amount
             else:
                 self._value += amount
@@ -34,7 +34,7 @@ class Counter:
         lines = [f"# HELP {self.name} {self.help_text}", f"# TYPE {self.name} counter"]
         if self.labels and self._label_values:
             for key, value in sorted(self._label_values.items()):
-                label_str = ",".join(f'{l}="{v}"' for l, v in zip(self.labels, key))
+                label_str = ",".join(f'{label}="{v}"' for label, v in zip(self.labels, key, strict=False))
                 lines.append(f"{self.name}{{{label_str}}} {value:.0f}")
         else:
             lines.append(f"{self.name} {self._value:.0f}")
@@ -55,7 +55,7 @@ class Gauge:
     def set(self, value: float, *, labels: dict[str, str] | None = None) -> None:
         with self._lock:
             if labels and self.labels:
-                key = tuple(labels.get(l, "") for l in self.labels)
+                key = tuple(labels.get(label, "") for label in self.labels)
                 self._label_values[key] = value
             else:
                 self._value = value
@@ -63,7 +63,7 @@ class Gauge:
     def inc(self, amount: float = 1, *, labels: dict[str, str] | None = None) -> None:
         with self._lock:
             if labels and self.labels:
-                key = tuple(labels.get(l, "") for l in self.labels)
+                key = tuple(labels.get(label, "") for label in self.labels)
                 self._label_values[key] = self._label_values.get(key, 0) + amount
             else:
                 self._value += amount
@@ -75,7 +75,7 @@ class Gauge:
         lines = [f"# HELP {self.name} {self.help_text}", f"# TYPE {self.name} gauge"]
         if self.labels and self._label_values:
             for key, value in sorted(self._label_values.items()):
-                label_str = ",".join(f'{l}="{v}"' for l, v in zip(self.labels, key))
+                label_str = ",".join(f'{label}="{v}"' for label, v in zip(self.labels, key, strict=False))
                 lines.append(f"{self.name}{{{label_str}}} {value:.0f}")
         else:
             lines.append(f"{self.name} {self._value:.0f}")
@@ -91,7 +91,7 @@ class Histogram:
         self.name = name
         self.help_text = help_text
         self.buckets = sorted(buckets)
-        self._counts: dict[float, int] = {b: 0 for b in self.buckets}
+        self._counts: dict[float, int] = dict.fromkeys(self.buckets, 0)
         self._counts[float("inf")] = 0
         self._sum: float = 0
         self._total: int = 0
@@ -129,7 +129,7 @@ class Timer:
         self.histogram = histogram
         self._start: float = 0
 
-    def __enter__(self) -> "Timer":
+    def __enter__(self) -> Timer:
         self._start = time.monotonic()
         return self
 
@@ -154,7 +154,9 @@ class Metrics:
         self.healthy_agents = Gauge("agentroom_healthy_agents", "Number of healthy agents")
         self.dlq_depth = Gauge("agentroom_dlq_depth", "DLQ entries per agent", labels=("agent",))
         self.message_append_duration = Histogram("agentroom_message_append_duration_seconds", "Message append duration")
-        self.webhook_delivery_duration = Histogram("agentroom_webhook_delivery_duration_seconds", "Webhook delivery duration")
+        self.webhook_delivery_duration = Histogram(
+            "agentroom_webhook_delivery_duration_seconds", "Webhook delivery duration"
+        )
         self.segment_size_bytes = Gauge("agentroom_segment_size_bytes", "Current active segment size")
 
         # Agent node metrics

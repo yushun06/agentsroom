@@ -20,7 +20,9 @@ from .observability.metrics import Timer, metrics
 logger = get_logger("server")
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765, state_dir: str = ".state/agentroom", *, log_level: str = "INFO") -> None:
+def serve(
+    host: str = "127.0.0.1", port: int = 8765, state_dir: str = ".state/agentroom", *, log_level: str = "INFO"
+) -> None:
     """Start the Agentroom central node HTTP server."""
     setup_logging(log_level)
     store = AgentroomStore(state_dir)
@@ -194,14 +196,14 @@ class AgentroomHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
-    def log_message(self, fmt: str, *args: Any) -> None:
+    def log_message(self, fmt: str, *args: Any) -> None:  # noqa: ARG002
         return
 
     def _dispatch_webhooks(self, message: dict[str, Any]) -> None:
         """Fire-and-forget webhook dispatch in background."""
         if self.dlq_loop is None:
             return
-        future = asyncio.run_coroutine_threadsafe(
+        _future = asyncio.run_coroutine_threadsafe(
             dispatch_after_append(message, self.room_store),
             self.dlq_loop,
         )

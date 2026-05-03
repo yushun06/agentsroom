@@ -23,10 +23,13 @@ def _safe_agent_dir(state_dir: str | Path, agent_id: str) -> Path:
     if not agent_id or agent_id.strip("/") in ("", ".", ".."):
         raise ValueError(f"invalid agent_id for DLQ: {agent_id!r}")
     from urllib.parse import quote
+
     return Path(state_dir) / "dlq" / quote(agent_id, safe=":-_.")
 
 
-def enqueue_dlq(state_dir: str | Path, agent_id: str, message: dict[str, Any], *, error: str, webhook: str | None = None) -> Path:
+def enqueue_dlq(
+    state_dir: str | Path, agent_id: str, message: dict[str, Any], *, error: str, webhook: str | None = None
+) -> Path:
     """Write a failed delivery to the DLQ."""
     base = _safe_agent_dir(state_dir, agent_id)
     base.mkdir(parents=True, exist_ok=True)

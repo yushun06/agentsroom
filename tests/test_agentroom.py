@@ -74,10 +74,14 @@ class AgentroomTests(unittest.TestCase):
         self.assertEqual(agent["status"], "online")
         self.assertEqual(lifecycle.list_agents(role="reviewer")[0]["agentId"], "reviewer-a")
 
-        presence = lifecycle.join_room("project:demo", "reviewer-a", role="reviewer", adapter="codex", capabilities=["review"])
+        presence = lifecycle.join_room(
+            "project:demo", "reviewer-a", role="reviewer", adapter="codex", capabilities=["review"]
+        )
         self.assertEqual(presence["rooms"], ["project:demo"])
         self.assertEqual(lifecycle.heartbeat("reviewer-a", status="busy")["status"], "busy")
-        self.assertEqual(lifecycle.leave_room("project:demo", "reviewer-a", role="reviewer", adapter="codex")["rooms"], [])
+        self.assertEqual(
+            lifecycle.leave_room("project:demo", "reviewer-a", role="reviewer", adapter="codex")["rooms"], []
+        )
 
     def test_archive_blocks_future_user_posts(self) -> None:
         lifecycle = self.make_lifecycle()
@@ -88,7 +92,9 @@ class AgentroomTests(unittest.TestCase):
             lifecycle.post_text("project:demo", text="late", agent_id="worker-a", role="worker", adapter="codex")
 
     def test_a2a_schema_validation(self) -> None:
-        validate_a2a_payload({"schema": "agentroom.a2a.v1", "type": "review", "intent": "request", "summary": "Review code"})
+        validate_a2a_payload(
+            {"schema": "agentroom.a2a.v1", "type": "review", "intent": "request", "summary": "Review code"}
+        )
         with self.assertRaises(SchemaError):
             validate_a2a_payload({"schema": "agentroom.a2a.v1", "type": "review"})
 
@@ -105,18 +111,18 @@ class AgentroomTests(unittest.TestCase):
         lifecycle = self.make_lifecycle()
         lifecycle.create_room("project:demo")
         # This agent ID contains a path traversal attempt
-        agent = lifecycle.register_agent(
-            "../registry", role="attacker", adapter="test",
+        _agent = lifecycle.register_agent(
+            "../registry",
+            role="attacker",
+            adapter="test",
         )
         # The presence file should be inside presence_dir, not outside
         presence_dir = lifecycle.store.presence_dir
         for path in presence_dir.iterdir():
-            self.assertEqual(path.resolve().parent, presence_dir.resolve(),
-                             f"presence file escaped directory: {path}")
+            self.assertEqual(path.resolve().parent, presence_dir.resolve(), f"presence file escaped directory: {path}")
         # Verify the agent can be looked up and presence read correctly
         presence = lifecycle.join_room("project:demo", "../registry", role="attacker", adapter="test")
         self.assertIn("project:demo", presence["rooms"])
-
 
     def test_create_room_rejects_empty_id(self) -> None:
         """Empty room ID must be rejected before the index is mutated."""
@@ -132,8 +138,13 @@ class DLQTests(unittest.TestCase):
     def test_enqueue_and_read_dlq(self) -> None:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        message = {"id": "msg_test123", "roomId": "room1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_test123",
+            "roomId": "room1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         enqueue_dlq(tmp.name, "agent-1", message, error="timeout")
         entries = read_dlq_entries(tmp.name)
         self.assertEqual(len(entries), 1)
@@ -145,8 +156,13 @@ class DLQTests(unittest.TestCase):
         """Agent IDs that are '.' or '..' must be rejected, not written outside dlq/."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        message = {"id": "msg_dot", "roomId": "room1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_dot",
+            "roomId": "room1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         with self.assertRaises(ValueError):
             enqueue_dlq(tmp.name, ".", message, error="test")
         with self.assertRaises(ValueError):
@@ -160,20 +176,29 @@ class DLQTests(unittest.TestCase):
         """DLQ files for agent IDs with path separators must stay inside dlq/."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        message = {"id": "msg_traversal", "roomId": "room1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_traversal",
+            "roomId": "room1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         enqueue_dlq(tmp.name, "../../etc/passwd", message, error="test")
         dlq_dir = Path(tmp.name) / "dlq"
         for agent_dir in dlq_dir.iterdir():
-            self.assertEqual(agent_dir.resolve().parent, dlq_dir.resolve(),
-                             f"DLQ agent dir escaped: {agent_dir}")
+            self.assertEqual(agent_dir.resolve().parent, dlq_dir.resolve(), f"DLQ agent dir escaped: {agent_dir}")
 
     def test_dlq_preserves_webhook_url(self) -> None:
         """Webhook URL stored in DLQ entry so standalone retry can find it."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        message = {"id": "msg_wh", "roomId": "room1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_wh",
+            "roomId": "room1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         enqueue_dlq(tmp.name, "agent-1", message, error="fail", webhook="http://example.test/hook")
         entries = read_dlq_entries(tmp.name)
         self.assertEqual(entries[0].get("webhook"), "http://example.test/hook")
@@ -181,19 +206,33 @@ class DLQTests(unittest.TestCase):
     def test_dlq_retry_marks_unhealthy(self) -> None:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        message = {"id": "msg_retry1", "roomId": "room1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_retry1",
+            "roomId": "room1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         # Enqueue with max retries already reached
-        from agentroom.delivery.dlq import _dlq_path, _update_dlq_entry
-        path = enqueue_dlq(tmp.name, "agent-1", message, error="fail1")
-        entry = {"agentId": "agent-1", "messageId": "msg_retry1", "payload": message,
-                 "attempts": 3, "lastError": "fail", "updatedAt": "now",
-                 "webhook": "http://127.0.0.1:1/nonexistent"}
+        from agentroom.delivery.dlq import _update_dlq_entry
+
+        _path = enqueue_dlq(tmp.name, "agent-1", message, error="fail1")
+        entry = {
+            "agentId": "agent-1",
+            "messageId": "msg_retry1",
+            "payload": message,
+            "attempts": 3,
+            "lastError": "fail",
+            "updatedAt": "now",
+            "webhook": "http://127.0.0.1:1/nonexistent",
+        }
         _update_dlq_entry(tmp.name, entry, error="fail2")
         # After 4 attempts total, retry should mark unhealthy
         marked_unhealthy = []
+
         async def mark_fn(agent_id: str) -> None:
             marked_unhealthy.append(agent_id)
+
         asyncio.run(retry_dlq(tmp.name, mark_unhealthy_fn=mark_fn, webhook_timeout=0.5))
         # The entry should be removed (exhausted)
         entries = read_dlq_entries(tmp.name)
@@ -246,8 +285,13 @@ class WebhookTests(unittest.TestCase):
         self.assertEqual(subs[0]["agentId"], "a2")
 
     def test_fan_out_to_invalid_url(self) -> None:
-        message = {"id": "msg_test", "roomId": "r1", "format": "plain_text",
-                    "from": {"agentId": "a", "role": "r", "adapter": "x"}, "payload": {"text": "hi"}}
+        message = {
+            "id": "msg_test",
+            "roomId": "r1",
+            "format": "plain_text",
+            "from": {"agentId": "a", "role": "r", "adapter": "x"},
+            "payload": {"text": "hi"},
+        }
         subs = [{"agentId": "bad-agent", "webhook": "http://127.0.0.1:1/nonexistent"}]
         results = asyncio.run(fan_out(message, subs, timeout=0.5))
         self.assertEqual(len(results), 1)
@@ -291,13 +335,14 @@ class MetricsTests(unittest.TestCase):
     def test_histogram_buckets_are_valid_cumulative(self) -> None:
         """Cumulative bucket values must be monotonically non-decreasing and <= _count."""
         h = Histogram("test_bucket_h", "Bucket test", buckets=(0.1, 0.5, 1.0))
-        h.observe(0.05)   # falls in 0.1
-        h.observe(0.3)    # falls in 0.5
-        h.observe(0.7)    # falls in 1.0
-        h.observe(5.0)    # exceeds all, only +Inf
+        h.observe(0.05)  # falls in 0.1
+        h.observe(0.3)  # falls in 0.5
+        h.observe(0.7)  # falls in 1.0
+        h.observe(5.0)  # exceeds all, only +Inf
         output = h.collect()
         # Parse bucket lines
         import re
+
         buckets = {}
         for match in re.finditer(r'_bucket\{le="([^"]+)"\} (\d+)', output):
             le, count = match.group(1), int(match.group(2))
@@ -307,8 +352,7 @@ class MetricsTests(unittest.TestCase):
         # Cumulative: each le >= previous
         prev = 0
         for le_val in ["0.1", "0.5", "1.0", "+Inf"]:
-            self.assertGreaterEqual(buckets[le_val], prev,
-                                    f"le={le_val}={buckets[le_val]} < prev={prev}")
+            self.assertGreaterEqual(buckets[le_val], prev, f"le={le_val}={buckets[le_val]} < prev={prev}")
             prev = buckets[le_val]
         # No bucket exceeds total
         for le_val, count in buckets.items():
@@ -317,6 +361,7 @@ class MetricsTests(unittest.TestCase):
     def test_timer(self) -> None:
         h = Histogram("test_timer_h", "Timer test")
         import time
+
         with Timer(h):
             time.sleep(0.01)
         self.assertEqual(h._total, 1)
@@ -333,11 +378,13 @@ class MetricsTests(unittest.TestCase):
 class LoggingTests(unittest.TestCase):
     def test_json_formatter(self) -> None:
         import logging
+
         formatter = JSONFormatter()
         record = logging.LogRecord("agentroom.core", logging.INFO, "", 0, "append message", (), None)
         record.roomId = "room1"
         output = formatter.format(record)
         import json
+
         data = json.loads(output)
         self.assertEqual(data["component"], "agentroom.core")
         self.assertEqual(data["event"], "append message")
