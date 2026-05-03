@@ -1,0 +1,18 @@
+services:
+  agentroom:
+    build: .
+    ports:
+      - "8765:8765"
+    volumes:
+      - agentroom-data:/data/agentroom
+    environment:
+      - AGENTROOM_STATE_DIR=/data/agentroom
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8765/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  agentroom-data:
